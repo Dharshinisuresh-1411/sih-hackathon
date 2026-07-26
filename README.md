@@ -162,4 +162,5 @@ _(Add screenshots here before submission)_
 7. Open **Open Complaints** — show it grouped by ward, and that the closed complaint is gone.
 8. Open **Repeat-Offender Poles** — show P-002 at/near the top with its complaint count, and explain that this ranking is computed live from the database, flagging poles that may need replacement instead of continued repair.
 #   s i h - h a c k a t h o n  
+ #   s i h - h a c k a t h o n  
  
