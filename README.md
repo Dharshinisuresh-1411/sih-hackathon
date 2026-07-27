@@ -2,8 +2,6 @@
 
 A robust, pole-centric complaint management and repair coordination platform designed specifically for Panchayat street-light maintenance. 
 
----
-
 ## 📋 Project Description
 
 ### 1. Problem Statement
@@ -169,81 +167,17 @@ SECRET_KEY=dev-secret-change-me
 ```
 *Note: Make sure to create the database inside MySQL before continuing:*
 ```sql
-CREATE DATABASE panchayat_street_light;
-```
-
----
+CREATE DATABASE panchayat_street_light
 
 ### Step 5: Database Seeding
 Populate the database tables and insert initial test data (registered poles, sample complaints, and electricians):
 ```bash
 python seed/seed_data.py
 ```
-
-### Step 6: Start the Application
-Launch the Flask development server:
-```bash
-python app.py
-```
-* The application will run at **`http://localhost:5000`**.
-* Open your browser and navigate to `http://localhost:5000` to access the Dashboard.
-
----
-
-<<<<<<< HEAD
-## 18. Demo Flow (2 minutes)
-1. Open **Dashboard** — point out KPIs and the "open complaints by ward" chart.
-2. Go to **Register Complaint**, enter pole **P-002** — show the existing-open-complaint warning card, explain this is how duplicate dispatch is avoided.
-3. Register a complaint on a pole with no open complaint — show the success card.
-4. Go to **Assign**, assign the new complaint to an active electrician.
-5. Try (via a second browser tab or curl) assigning an **inactive** electrician to show it gets rejected.
-6. Go back to **Assign**, close the complaint with a repair note and replaced item.
-7. Open **Open Complaints** — show it grouped by ward, and that the closed complaint is gone.
-8. Open **Repeat-Offender Poles** — show P-002 at/near the top with its complaint count, and explain that this ranking is computed live from the database, flagging poles that may need replacement instead of continued repair.
-#   s i h - h a c k a t h o n 
  
  #   s i h - h a c k a t h o n 
  
- 
-## demonstration video link
 
-https://drive.google.com/file/d/1bYYAY_J493YanaFYxsSrfFlkmYe3qg5x/view?t=88.899
-
-
-
-
-#NEW CHANGED PROJECT DEMONSTRATION VIDEO
-
-
-https://drive.google.com/file/d/12GEiWst78WdPpASWl9jcD72Mre8GBaw2/view?t=6.309
-=======
-## 🧪 Testing
-
-To run the automated test suite, execute the following command in the project directory:
-```bash
-pytest tests/ -v
-```
-*The test suite automatically spins up an isolated, in-memory SQLite database, running all test scenarios without affecting your active development data.*
-
-### Verified Test Cases
-1. **Pole Creation:** Registering new poles and preventing duplicate pole numbers.
-2. **Intake Validation:** Rejecting complaints filed on non-existent poles.
-3. **Duplicate Prevention:** Alerting and blocking new complaints on poles with existing active complaints.
-4. **Aggregations:** Correctly grouping open complaints ward-wise.
-5. **Assignment Logic:** Assigning tickets to active electricians while rejecting assignments to inactive ones.
-6. **Concurrency/Race Conditions:** Validating optimistic locking behavior under double-closure attempts.
-
----
-
-## 💡 Failure Recovery Features
-
-* **Double Closure Resolution (Optimistic Locking):** 
-  If two dashboard users attempt to close the same complaint at the same time, the system matches the ticket's `version` number. The transaction updates the state only if the version is unchanged. The second request is rejected with a `409 Conflict` status, informing the user that the complaint has already been resolved.
-* **Electrician Availability Safeguards:** 
-  The backend strictly evaluates the electrician’s active status in database records prior to assignment. Client-side attempts to assign inactive operators by modifying API request payloads are caught and rejected with a `400 Bad Request`.
-* **Database Connection Failure handling:** 
-  All routes wrapping DB access capture `SQLAlchemyError`. If the database crashes or disconnects, the API triggers an automatic fallback message, informing the client of database unavailability, rather than exposing internal stack traces.
->>>>>>> c54c3f5 ( final change)
 ##DEMONSTRATION VIDEO
 >>>>>>> https://drive.google.com/file/d/1bYYAY_J493YanaFYxsSrfFlkmYe3qg5x/view?t=3.378
 
