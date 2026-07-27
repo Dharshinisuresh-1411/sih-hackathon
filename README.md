@@ -244,7 +244,9 @@ pytest tests/ -v
 * **Database Connection Failure handling:** 
   All routes wrapping DB access capture `SQLAlchemyError`. If the database crashes or disconnects, the API triggers an automatic fallback message, informing the client of database unavailability, rather than exposing internal stack traces.
 >>>>>>> c54c3f5 ( final change)
+##DEMONSTRATION VIDEO
+>>>>>>> https://drive.google.com/file/d/1bYYAY_J493YanaFYxsSrfFlkmYe3qg5x/view?t=3.378
 
- demonstration video of changed 
- 
+##UPDATED PROJECT VIDEO LINK
+
 https://drive.google.com/file/d/12GEiWst78WdPpASWl9jcD72Mre8GBaw2/view?t=6.309
