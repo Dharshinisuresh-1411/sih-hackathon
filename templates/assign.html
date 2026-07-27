@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Assign / Close Complaint{% endblock %}
+{% block content %}
+<h4 class="mb-3">Assign Complaint</h4>
+
+<div class="card card-section">
+  <div class="card-header">Step 1: Assign an open complaint to an electrician</div>
+  <div class="card-body">
+    <form id="assignForm" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">Complaint</label>
+        <select class="form-select" id="complaintSelect" required></select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Electrician (active only)</label>
+        <select class="form-select" id="electricianSelect" required></select>
+      </div>
+      <div class="col-md-3">
+        <button class="btn btn-success w-100" type="submit"><i class="fa-solid fa-clipboard-check me-1"></i>Assign</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<h4 class="mt-4 mb-3">Repair &amp; Closure</h4>
+<div class="card card-section">
+  <div class="card-header">Step 2: Close a complaint that has been assigned / is in progress</div>
+  <div class="card-body">
+    <table class="table align-middle">
+      <thead class="table-light"><tr><th>ID</th><th>Pole</th><th>Electrician</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="assignedBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="closeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" id="closeForm">
+      <div class="modal-header"><h5 class="modal-title">Close Complaint <span id="closeComplaintId"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="closeComplaintIdInput">
+        <input type="hidden" id="closeVersionInput">
+        <div class="mb-2"><label class="form-label">Closed By</label><input class="form-control" id="closedBy" required></div>
+        <div class="mb-2"><label class="form-label">Repair Note</label><textarea class="form-control" id="repairNote" rows="3" placeholder="e.g. Replaced damaged LED driver and checked wiring." required></textarea></div>
+        <div class="mb-2"><label class="form-label">Replaced Item</label><input class="form-control" id="replacedItem" placeholder="e.g. LED Driver"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success" type="submit">Close Complaint</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let closeModal;
+document.addEventListener('DOMContentLoaded', () => { closeModal = new bootstrap.Modal(document.getElementById('closeModal')); });
+
+async function loadAssignOptions() {
+  const [complaintsRes, electriciansRes] = await Promise.all([
+    apiFetch('/api/complaints?status=OPEN'),
+    apiFetch('/api/electricians?active_only=true'),
+  ]);
+  if (!complaintsRes.ok) return showAlert(complaintsRes.error);
+  if (!electriciansRes.ok) return showAlert(electriciansRes.error);
+
+  document.getElementById('complaintSelect').innerHTML = complaintsRes.data.map(c =>
+    `<option value="${c.id}">#${c.id} - ${c.pole_number} (${c.ward}) - ${c.description.slice(0, 40)}</option>`
+  ).join('') || '<option value="">No open complaints</option>';
+
+  document.getElementById('electricianSelect').innerHTML = electriciansRes.data.map(e =>
+    `<option value="${e.id}">${e.name} (${e.phone})</option>`
+  ).join('') || '<option value="">No active electricians</option>';
+}
+
+async function loadAssignedList() {
+  const [assigned, inProgress] = await Promise.all([
+    apiFetch('/api/complaints?status=ASSIGNED'),
+    apiFetch('/api/complaints?status=IN_PROGRESS'),
+  ]);
+  if (!assigned.ok) return showAlert(assigned.error);
+  if (!inProgress.ok) return showAlert(inProgress.error);
+  const rows = [...assigned.data, ...inProgress.data];
+  document.getElementById('assignedBody').innerHTML = rows.map(c => `
+    <tr>
+      <td>#${c.id}</td><td>${c.pole_number}</td><td>${c.assigned_electrician || '-'}</td>
+      <td>${statusBadge(c.status)}</td>
+      <td><button class="btn btn-sm btn-outline-success" onclick="openCloseModal(${c.id}, ${c.version})"><i class="fa-solid fa-check me-1"></i>Close</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" class="text-center text-muted p-3">Nothing assigned right now</td></tr>';
+}
+
+function openCloseModal(id, version) {
+  document.getElementById('closeComplaintId').textContent = '#' + id;
+  document.getElementById('closeComplaintIdInput').value = id;
+  document.getElementById('closeVersionInput').value = version;
+  document.getElementById('closeForm').reset();
+  closeModal.show();
+}
+
+document.getElementById('assignForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const complaintId = document.getElementById('complaintSelect').value;
+  const electricianId = document.getElementById('electricianSelect').value;
+  if (!complaintId || !electricianId) return showAlert('No open complaint or active electrician available.');
+
+  const { ok, error } = await apiFetch(`/api/complaints/${complaintId}/assign`, {
+    method: 'POST', body: JSON.stringify({ electrician_id: Number(electricianId) }),
+  });
+  if (!ok) return showAlert(error);
+  showAlert('Complaint assigned successfully.', 'success');
+  e.target.reset();
+  loadAssignOptions();
+  loadAssignedList();
+  if (typeof window.refreshPolesList === 'function') {
+    window.refreshPolesList();
+  }
+});
+
+document.getElementById('closeForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('closeComplaintIdInput').value;
+  const payload = {
+    closed_by: document.getElementById('closedBy').value,
+    repair_note: document.getElementById('repairNote').value,
+    replaced_item: document.getElementById('replacedItem').value,
+    version: Number(document.getElementById('closeVersionInput').value),
+  };
+  const { ok, error } = await apiFetch(`/api/complaints/${id}/close`, { method: 'POST', body: JSON.stringify(payload) });
+  if (!ok) return showAlert(error);
+  closeModal.hide();
+  showAlert('Complaint closed successfully.', 'success');
+  loadAssignedList();
+  if (typeof window.refreshPolesList === 'function') {
+    window.refreshPolesList();
+  }
+});
+
+loadAssignOptions();
+loadAssignedList();
+</script>
+{% endblock %}

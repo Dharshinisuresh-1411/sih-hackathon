@@ -1,0 +1,1 @@
+Placeholder — replace with a drawn ER diagram (e.g. exported from dbdiagram.io) before submission. See README.md section 9 for the text-based ER diagram.

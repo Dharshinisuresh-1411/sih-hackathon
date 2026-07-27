@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}All Complaints{% endblock %}
+{% block content %}
+<h4 class="mb-3">All Complaints</h4>
+
+<div class="card card-section">
+  <div class="card-body">
+    <form id="filterForm" class="row g-2">
+      <div class="col-md-2">
+        <select class="form-select" name="status">
+          <option value="">All Status</option>
+          <option value="OPEN">Open</option>
+          <option value="ASSIGNED">Assigned</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="CLOSED">Closed</option>
+        </select>
+      </div>
+      <div class="col-md-2"><input class="form-control" name="ward" placeholder="Ward"></div>
+      <div class="col-md-2"><input class="form-control" name="pole_number" placeholder="Pole Number"></div>
+      <div class="col-md-3"><input class="form-control" name="q" placeholder="Search complaints" aria-label="Search complaints"></div>
+      <div class="col-md-3"><button class="btn btn-outline-success w-100" type="submit"><i class="fa-solid fa-filter me-1"></i>Filter</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card card-section">
+  <div class="card-body p-0">
+    <table class="table mb-0 align-middle">
+      <thead class="table-light">
+        <tr><th>ID</th><th>Pole</th><th>Ward</th><th>Location</th><th>Caller</th><th>Description</th><th>Remarks</th><th>Date</th><th>Status</th><th>Electrician</th></tr>
+      </thead>
+      <tbody id="complaintsBody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadComplaints(params = '') {
+  const { ok, data, error } = await apiFetch('/api/complaints' + params);
+  if (!ok) return showAlert(error);
+  document.getElementById('complaintsBody').innerHTML = data.map(c => `
+    <tr>
+      <td>#${c.id}</td><td><strong>${c.pole_number}</strong></td><td>${c.ward}</td><td>${c.location}</td>
+      <td>${c.caller_name}<br><small class="text-muted">${c.caller_phone}</small></td>
+      <td>${c.description}</td><td>${c.remarks || '-'}</td><td>${formatDate(c.created_at)}</td>
+      <td>${statusBadge(c.status)}</td><td>${c.assigned_electrician || '-'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="10" class="text-center text-muted p-3">No complaints found</td></tr>';
+}
+
+document.getElementById('filterForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const params = new URLSearchParams();
+  for (const [k, v] of form.entries()) if (v) params.append(k, v);
+  loadComplaints('?' + params.toString());
+});
+
+loadComplaints();
+</script>
+{% endblock %}

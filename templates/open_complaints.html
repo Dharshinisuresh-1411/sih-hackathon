@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Open Complaints{% endblock %}
+{% block content %}
+<h4 class="mb-1">Open Complaints</h4>
+<p class="text-muted">What needs to be done today — grouped by ward.</p>
+<div id="wardGroups"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadOpen() {
+  const { ok, data, error } = await apiFetch('/api/complaints/open');
+  if (!ok) return showAlert(error);
+
+  const wards = Object.keys(data).sort();
+  if (wards.length === 0) {
+    document.getElementById('wardGroups').innerHTML = '<div class="text-muted">No open complaints. All clear!</div>';
+    return;
+  }
+
+  document.getElementById('wardGroups').innerHTML = wards.map(ward => `
+    <div class="ward-group-title"><i class="fa-solid fa-map-pin me-1"></i>${ward}</div>
+    <div class="card card-section">
+      <div class="card-body p-0">
+        <table class="table mb-0 align-middle">
+          <thead class="table-light"><tr><th>Complaint</th><th>Pole</th><th>Location</th><th>Description</th><th>Remarks</th><th>Date</th><th>Status</th></tr></thead>
+          <tbody>
+            ${data[ward].map(c => `
+              <tr>
+                <td>#${c.id}</td><td><strong>${c.pole_number}</strong></td><td>${c.location}</td>
+                <td>${c.description}</td><td>${c.remarks || '-'}</td><td>${formatDate(c.created_at)}</td><td>${statusBadge(c.status)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `).join('');
+}
+loadOpen();
+</script>
+{% endblock %}

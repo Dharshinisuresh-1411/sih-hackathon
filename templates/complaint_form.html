@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Register Complaint{% endblock %}
+{% block content %}
+<h4 class="mb-3">Register Complaint</h4>
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card card-section">
+      <div class="card-body">
+        <form id="complaintForm">
+          <div class="mb-3">
+            <label class="form-label">Pole Number</label>
+            <input class="form-control" name="pole_number" id="poleNumberInput" placeholder="e.g. P-002" required>
+            <div class="form-text">Enter the pole number printed on the pole label.</div>
+          </div>
+          <div class="mb-3"><label class="form-label">Caller Name</label><input class="form-control" name="caller_name" required></div>
+          <div class="mb-3"><label class="form-label">Caller Phone</label><input class="form-control" name="caller_phone" placeholder="10-digit mobile" required></div>
+          <div class="mb-3"><label class="form-label">Complaint Description</label><textarea class="form-control" name="description" rows="3" placeholder="e.g. Light not working since last night" required></textarea></div>
+          <div class="mb-3"><label class="form-label">Remarks</label><textarea class="form-control" name="remarks" rows="2" placeholder="Optional notes for follow-up"></textarea></div>
+          <button class="btn btn-success" type="submit"><i class="fa-solid fa-paper-plane me-1"></i>Submit Complaint</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div id="duplicateArea"></div>
+    <div id="successArea"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('complaintForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  document.getElementById('duplicateArea').innerHTML = '';
+  document.getElementById('successArea').innerHTML = '';
+
+  const form = new FormData(e.target);
+  const payload = Object.fromEntries(form.entries());
+  payload.pole_number = payload.pole_number.trim().toUpperCase();
+
+  const { ok, data, error } = await apiFetch('/api/complaints', { method: 'POST', body: JSON.stringify(payload) });
+
+  if (!ok) return showAlert(error);
+
+  if (data.duplicate) {
+    const c = data.existing_complaint;
+    document.getElementById('duplicateArea').innerHTML = `
+      <div class="card card-section border-warning">
+        <div class="card-header bg-warning-subtle"><i class="fa-solid fa-circle-exclamation me-1"></i>Active Complaint Already Exists</div>
+        <div class="card-body">
+          <p>${data.message}</p>
+          <table class="table table-sm mb-0">
+            <tr><th>Complaint ID</th><td>#${c.id}</td></tr>
+            <tr><th>Pole Number</th><td>${c.pole_number}</td></tr>
+            <tr><th>Ward</th><td>${c.ward}</td></tr>
+            <tr><th>Location</th><td>${c.location}</td></tr>
+            <tr><th>Complaint Date</th><td>${formatDate(c.created_at)}</td></tr>
+            <tr><th>Current Status</th><td>${statusBadge(c.status)}</td></tr>
+          </table>
+        </div>
+      </div>`;
+  } else {
+    const c = data.complaint;
+    document.getElementById('successArea').innerHTML = `
+      <div class="card card-section border-success">
+        <div class="card-header bg-success-subtle"><i class="fa-solid fa-circle-check me-1"></i>New Complaint Registered</div>
+        <div class="card-body">
+          <p>Complaint <strong>#${c.id}</strong> created for pole <strong>${c.pole_number}</strong> (${c.ward}) and marked ${statusBadge(c.status)}.</p>
+        </div>
+      </div>`;
+    e.target.reset();
+  }
+});
+</script>
+{% endblock %}

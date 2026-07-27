@@ -1,157 +1,196 @@
-# Panchayat Street Light Complaint and Repair Assignment System
+# Panchayat Street Light Complaint & Repair Assignment System
 
-## 1. Project Title
-**Panchayat Street Light Complaint and Repair Assignment System** — a pole-centric complaint management platform for Panchayat street-light maintenance.
+A robust, pole-centric complaint management and repair coordination platform designed specifically for Panchayat street-light maintenance. 
 
-## 2. Problem Statement
-A Panchayat currently records street-light complaints by telephone in a manual register. This leads to duplicate complaints for the same pole, electricians being dispatched multiple times to the same location, no visibility into which complaints are still open, no accountability for who assigned/closed a repair, and no way to identify poles that fail repeatedly and may need replacement instead of repeated repair.
+---
 
-## 3. Problem Understanding
-The root cause of the duplication problem is that complaints are conceptually tied to **callers** (whoever phoned in), not to the physical **asset** (the pole) that is actually broken. Two people calling about the same dark pole today look, in a caller-centric system, like two unrelated complaints. A pole-centric model fixes this at the data-model level.
+## 📋 Project Description
 
-## 4. Proposed Solution
-Every complaint is created against a specific, pre-registered **pole** (identified by a unique pole number). Before a new complaint is accepted, the system checks whether that pole already has an **active** (non-closed) complaint. If it does, the clerk is shown the existing complaint instead of a duplicate work order being silently created. All complaint history remains attached to the pole, so the Panchayat can see, per pole, how many times it has failed and when.
+### 1. Problem Statement
+In typical Panchayats, street-light complaints are logged manually via telephone calls into physical registers. This traditional workflow suffers from several issues:
+* **Duplicate complaints** are registered for the same non-functional pole, since complaints are indexed by caller rather than by physical asset.
+* **Redundant dispatches** occur when multiple electricians are sent to inspect or repair the same light pole.
+* **Lack of visibility** makes it difficult to track which complaints are open, who they are assigned to, or how long they have been pending.
+* **No audit trail** for who assigned or closed a repair ticket, hindering accountability.
+* **No intelligence** on recurring issues to identify "repeat-offender" poles that need replacement rather than temporary repairs.
 
-## 5. Key Innovation
-> **Anchoring complaints to poles instead of callers solves the duplicate-complaint problem because "has this been reported already?" becomes a simple lookup on the pole's current open complaint — not a fuzzy match on caller name, phone number, or free-text description.** It also makes the repeat-offender question trivial: it's just `GROUP BY pole_id, COUNT(*)` over the complaints table, something that is effectively impossible to compute reliably from a caller-centric register.
+### 2. The Solution: Pole-Centric Model
+This system addresses the root cause of these issues by transitioning from a caller-centric design to a **pole-centric design**. 
+* Every complaint is anchored to a unique, pre-registered **Pole ID**.
+* Before registering a new complaint, the system performs a lookup for active (non-closed) complaints on that pole. If an active complaint exists, the operator is prompted with the existing ticket details, preventing duplicates.
+* Historical records stay permanently linked to the specific pole, facilitating effortless health reporting and analysis.
 
-## 6. Features
-- Pole registry with ward/location/status
-- Complaint intake with automatic duplicate-active-complaint detection
-- Complaint list with filters (status, ward, pole, keyword)
-- Open Complaints view grouped by ward ("what needs doing today")
-- Electrician registry with active/inactive flag (server-enforced)
-- Assignment workflow (OPEN → ASSIGNED)
-- Repair & closure workflow with repair notes / replaced item (→ CLOSED)
-- Repeat-Offender ranking view, calculated purely via SQL aggregation
-- Dashboard with KPIs and Chart.js visualizations
-- Optimistic-locking protection against double-closure race conditions
-- Graceful handling of database-unavailable errors
+### 3. Key Features
+* **Pole Registry:** Detailed records of each pole (unique pole number, ward number, location, status).
+* **Smart Intake:** Complaint submission with automatic duplicate checking.
+* **Ward-wise Aggregation:** Open complaints grouped dynamically by ward for easy daily task dispatching.
+* **Electrician Registry:** Active/Inactive status management to prevent assigning tickets to unavailable personnel.
+* **State Machine Workflow:** Governed lifecycle transitions: `OPEN` ➔ `ASSIGNED` (➔ `IN_PROGRESS`) ➔ `CLOSED`.
+* **Repeat-Offender Analyzer:** Automatic SQL-based ranking of poles with the highest failure rates over a configurable time window (e.g., 12 months) to flag replacement candidates.
+* **Real-time Dashboard:** KPI summaries, status distribution charts, and ward workloads powered by Chart.js.
+* **Resilient Infrastructure:** 
+  * **Optimistic Locking:** Double-closure race conditions are prevented using a database `version` column.
+  * **Database Fail-safe:** Graceful error handling in case of DB connection loss with friendly user messages instead of app crashes.
 
-## 7. Technology Stack
-**Frontend:** HTML5, CSS3, vanilla JavaScript, Bootstrap 5, Font Awesome, Chart.js
-**Backend:** Python 3, Flask, Flask-SQLAlchemy, Flask-CORS
-**Database:** MySQL (primary) via PyMySQL, with a documented SQLite fallback
-**Tooling:** VS Code, Git, GitHub, `venv`, pytest
+---
 
-## 8. System Architecture
+## 🛠️ Technology Stack
+
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Backend** | **Python 3**, **Flask** | Server logic, modular routes, and RESTful API endpoints. |
+| **ORM** | **Flask-SQLAlchemy** | Object-Relational Mapping for database queries and updates. |
+| **Database** | **MySQL** (Primary) / **SQLite** (Fallback) | Relational storage for poles, electricians, complaints, and work records. |
+| **Frontend** | **HTML5**, **CSS3**, **Vanilla JS** | Interactive shell pages built with **Bootstrap 5** and **Font Awesome**. |
+| **Visualizations** | **Chart.js** | Live interactive charts on the dashboard. |
+| **Testing** | **pytest** | Unit and integration test suites. |
+| **Tooling** | **python-dotenv**, **venv** | Environment configuration and isolated dependency management. |
+
+---
+
+## ⚙️ System Architecture
+
 ```
-Browser (Bootstrap + Chart.js + vanilla JS)
-        │  fetch() calls
-        ▼
-Flask app (app.py) ── Blueprints ──▶ routes/*.py  (validation, business logic)
-                                          │
-                                          ▼
-                                   Flask-SQLAlchemy models (models/*.py)
-                                          │
-                                          ▼
-                                MySQL (or SQLite fallback)
+                       ┌─────────────────────────┐
+                       │ Browser Client          │
+                       │ (HTML5/CSS3/JS/Chart.js)│
+                       └────────────┬────────────┘
+                                    │
+                                    ▼ HTTP REST APIs
+                       ┌─────────────────────────┐
+                       │ Flask Application       │
+                       │ (app.py)                │
+                       └────────────┬────────────┘
+                                    │
+                                    ▼ Registers Blueprints
+                       ┌─────────────────────────┐
+                       │ Blueprints & Routes     │
+                       │ (routes/*.py)           │
+                       └────────────┬────────────┘
+                                    │
+                                    ▼ Maps Database
+                       ┌─────────────────────────┐
+                       │ SQLAlchemy Models       │
+                       │ (models/*.py)           │
+                       └────────────┬────────────┘
+                                    │
+                        ┌───────────┴───────────┐
+                        ▼                       ▼
+            ┌──────────────────────┐  ┌──────────────────┐
+            │ MySQL Database       │  │ SQLite Fallback  │
+            │ (Production / Demo)  │  │ (Zero-Setup Dev) │
+            └──────────────────────┘  └──────────────────┘
 ```
-Server-rendered Jinja2 pages provide the shell/navigation; all data is loaded client-side via the REST API. This keeps the frontend simple (no build step) while still being interactive.
 
-## 9. ER Diagram
+---
+
+## 🗄️ Database Schema & Relationships
+
 ```
- POLES (1) ────────< (many) COMPLAINTS (1) ──── (1) WORK_RECORDS >──── (many-to-1) ELECTRICIANS
-   id PK                     id PK                    id PK                         id PK
-   pole_number UQ            pole_id FK                complaint_id FK UQ            name
-   ward                      caller_name               electrician_id FK             phone
-   location                  caller_phone               assigned_by                  is_active
-   status                    description                assigned_at
-   created_at                status                     closed_by
-                             created_at                 closed_at
-                             updated_at                 repair_note
-                             version                     replaced_item
+ ┌──────────────┐         ┌───────────────┐         ┌─────────────────┐         ┌──────────────┐
+ │    POLES     │         │  COMPLAINTS   │         │  WORK_RECORDS   │         │ ELECTRICIANS │
+ ├──────────────┤         ├───────────────┤         ├─────────────────┤         ├──────────────┤
+ │ PK | id      │1       *│ PK | id       │1       1│ PK | id         │*       1│ PK | id      │
+ │    pole_num  ├────────>│ FK | pole_id  ├────────>│ FK | complaint_id│<────────┤    name      │
+ │    ward      │         │    caller_name│         │ FK | elect_id   │        │    phone     │
+ │    location  │         │    phone      │         │    assigned_by  │        │    is_active │
+ │    status    │         │    status     │         │    assigned_at  │        └──────────────┘
+ └──────────────┘         │    version    │         │    closed_by    │
+                          └───────────────┘         │    closed_at    │
+                                                    │    repair_note  │
+                                                    │    replaced_item│
+                                                    └─────────────────┘
 ```
-A text-based diagram is included above; `docs/er_diagram.png` is reserved as a placeholder for a drawn version (e.g. from dbdiagram.io) before your final submission.
 
-## 10. Database Schema
-**poles** — id PK, pole_number (unique, not null), ward (not null, indexed), location (not null), status (enum-like string), created_at
-**complaints** — id PK, pole_id FK → poles.id (not null, indexed), caller_name, caller_phone, description, status (indexed), created_at (indexed), updated_at, version (int, for optimistic locking)
-**electricians** — id PK, name, phone, is_active (bool, not null), created_at
-**work_records** — id PK, complaint_id FK → complaints.id (unique — one work record per complaint), electrician_id FK → electricians.id, assigned_by, assigned_at, closed_by, closed_at, repair_note, replaced_item
+---
 
-**Design note:** `work_records` is deliberately kept as one row per complaint (created at assignment, updated at closure) rather than splitting into a separate `assignments` table, because in this workflow a complaint is assigned at most once before closure — a single-row accountability record is simpler and still captures "who assigned / who closed / what was repaired" without extra joins. If future requirements allow re-assignment (e.g. an electrician marked unavailable mid-job), splitting into `assignments` (many rows) becomes the better model.
+## 🚀 Installation & Execution Steps
 
-## 11. Complaint State Machine
+### Prerequisites
+* **Python 3.8+** installed on your system.
+* (Optional) **MySQL Server** running locally.
+
+---
+
+### Step 1: Clone the Repository
+Open a terminal/command prompt and clone the workspace:
+```bash
+git clone <repository_url>
+cd panchayat-street-light/panchayat-street-light
 ```
-OPEN ──assign──▶ ASSIGNED ──start──▶ IN_PROGRESS ──close──▶ CLOSED
-                     └───────────────────close───────────────▶ CLOSED
-```
-Allowed transitions are enforced centrally in `models/complaint.py` (`ALLOWED_TRANSITIONS`). Any request that doesn't match an allowed transition is rejected with `409 Conflict`. `CLOSED` is a terminal state — no further transitions are allowed from it.
 
-## 12. API Documentation
-All endpoints return JSON. Base URL: `http://localhost:5000`.
+### Step 2: Set up a Virtual Environment
+Create and activate an isolated Python environment:
 
-| Method | URL | Purpose | Request Body | Response |
-|---|---|---|---|---|
-| GET | `/api/poles` | List poles (optional `?ward=`) | — | `200` array of poles |
-| GET | `/api/poles/<pole_number>` | Get one pole | — | `200` pole / `404` |
-| POST | `/api/poles` | Create pole | `{pole_number, ward, location, status?}` | `201` pole / `400` / `409` |
-| GET | `/api/complaints` | List complaints (`?status=&ward=&pole_number=&q=`) | — | `200` array |
-| POST | `/api/complaints` | Register complaint | `{pole_number, caller_name, caller_phone, description}` | `201` new complaint, or `200` with `duplicate: true` and `existing_complaint`, or `404` if pole unknown |
-| GET | `/api/complaints/open` | Open complaints grouped by ward | — | `200` `{ward: [complaints]}` |
-| GET | `/api/complaints/<id>` | Get one complaint | — | `200` / `404` |
-| POST | `/api/complaints/<id>/assign` | Assign to electrician | `{electrician_id, assigned_by}` | `200` updated complaint / `400` inactive electrician / `404` / `409` invalid transition |
-| POST | `/api/complaints/<id>/start` | Mark work started | — | `200` / `409` |
-| POST | `/api/complaints/<id>/close` | Close complaint with repair info | `{closed_by, repair_note, replaced_item?, version}` | `200` / `400` / `409` (version conflict / already closed) |
-| GET | `/api/electricians` | List electricians (`?active_only=true`) | — | `200` array |
-| POST | `/api/electricians` | Create electrician | `{name, phone, is_active?}` | `201` |
-| POST | `/api/electricians/<id>/toggle` | Toggle active/inactive | — | `200` |
-| GET | `/api/reports/summary` | Dashboard KPIs | — | `200` |
-| GET | `/api/reports/open-by-ward` | Open complaint counts by ward | — | `200` array |
-| GET | `/api/reports/status-distribution` | Complaint counts by status | — | `200` object |
-| GET | `/api/reports/repeat-offenders` | Repeat-offender ranking | — | `200` `{ranking_period_months, poles: [...]}` |
-
-## 13. Repeat-Offender Calculation
-- **Ranking period:** last **12 months** by default (`REPEAT_OFFENDER_MONTHS` in `.env`, defaults to 12).
-- **SQL logic** (see `routes/report_routes.py::repeat_offenders`):
-  ```sql
-  SELECT poles.*, COUNT(complaints.id) AS total_complaints, MAX(complaints.created_at) AS last_complaint_date
-  FROM poles JOIN complaints ON complaints.pole_id = poles.id
-  WHERE complaints.created_at >= NOW() - INTERVAL 12 MONTH
-  GROUP BY poles.id
-  ORDER BY total_complaints DESC;
+* **On Windows:**
+  ```powershell
+  python -m venv venv
+  .\venv\Scripts\activate
   ```
-- Complaints are grouped strictly by `pole_id`; the rank is the row's position after sorting by count descending. Poles with `total_complaints >= 4` are flagged `high_frequency` in the API response and highlighted in the UI as replacement candidates. Nothing here is manually entered — it is computed fresh on every request.
+* **On macOS/Linux:**
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  ```
 
-## 14. Failure Handling
-- **Double closure (two staff closing the same complaint):** the client always sends the `version` number it last saw. Closure is performed as a single conditional `UPDATE ... WHERE id = :id AND version = :version`. If the row count affected is 0, another request already closed it first, and the server returns `409 Conflict` — "Complaint has already been closed by another user." This is optimistic locking; no explicit row locks are held, which keeps the implementation simple and safe for a 2-day build while still being correct under concurrent requests.
-- **Inactive electrician:** enforced strictly server-side in `POST /api/complaints/<id>/assign` — the electrician's `is_active` flag is checked from the database regardless of what the client sends, so even a hand-crafted API request is rejected with `400` and a clear message.
-- **Database unavailable:** every route wraps its DB access in try/except around `SQLAlchemyError`; the session is rolled back and the client is given a generic, safe message ("Unable to process your request because the database is temporarily unavailable. Please try again.") instead of a stack trace or a false success response. The frontend's `apiFetch()` wrapper also catches network-level failures with the same message.
+### Step 3: Install Dependencies
+Run `pip` to install the required Python packages:
+```bash
+pip install -r requirements.txt
+```
 
-## 15. Installation
+### Step 4: Environment Configuration (`.env`)
+Copy the template `.env.example` file to create your local configurations:
+```bash
+cp .env.example .env
+```
+Open the `.env` file in an editor. You can configure the system to run on **SQLite** (requires zero setup) or **MySQL**.
 
-### Using MySQL (primary)
-1. Clone the repository: `git clone <your-repo-url> && cd panchayat-street-light`
-2. Create a virtual environment: `python3 -m venv venv`
-3. Activate it: `source venv/bin/activate` (Windows: `venv\Scripts\activate`)
-4. Install dependencies: `pip install -r requirements.txt`
-5. Create the MySQL database: `mysql -u root -p -e "CREATE DATABASE panchayat_street_light;"`
-6. Copy `.env.example` to `.env` and fill in your MySQL credentials
-7. Initialize + seed the database: `python seed/seed_data.py` (this creates all tables and inserts sample data)
-8. Run the app: `python app.py`
-9. Open `http://localhost:5000`
+#### Option A: Quick-start Configuration using SQLite (Recommended)
+Edit your `.env` to specify `sqlite` as the engine:
+```env
+DB_ENGINE=sqlite
+REPEAT_OFFENDER_MONTHS=12
+SECRET_KEY=dev-secret-change-me
+```
+*A local database file (`panchayat.db`) will be automatically created in the project root.*
 
-### Using SQLite (fallback, zero setup)
-Set `DB_ENGINE=sqlite` in `.env` (or `export DB_ENGINE=sqlite`) and follow steps 1–4, 7–9 above — no MySQL server needed. A `panchayat.db` file is created automatically in the project root.
+#### Option B: Production Setup using MySQL
+Ensure your MySQL server is running, then configure your connection details:
+```env
+DB_ENGINE=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=panchayat_street_light
+REPEAT_OFFENDER_MONTHS=12
+SECRET_KEY=dev-secret-change-me
+```
+*Note: Make sure to create the database inside MySQL before continuing:*
+```sql
+CREATE DATABASE panchayat_street_light;
+```
 
-## 16. Testing
-Run the automated suite: `pytest tests/ -v` (uses an in-memory SQLite database, independent of your dev database).
+---
 
-Covers: pole creation, duplicate pole rejection, unknown-pole complaint rejection, open-complaint duplicate detection, open-by-ward aggregation, assignment to active electrician, inactive-electrician rejection, successful closure, and rejection of a second closure attempt (409).
+### Step 5: Database Seeding
+Populate the database tables and insert initial test data (registered poles, sample complaints, and electricians):
+```bash
+python seed/seed_data.py
+```
 
-**Manual end-to-end scenario:** Register Complaint (new pole, no duplicate) → Assign to an active electrician → (optionally) Start → Close with repair note/replaced item → verify it disappears from Open Complaints → verify it now counts toward that pole's total in Repeat-Offender Poles.
+### Step 6: Start the Application
+Launch the Flask development server:
+```bash
+python app.py
+```
+* The application will run at **`http://localhost:5000`**.
+* Open your browser and navigate to `http://localhost:5000` to access the Dashboard.
 
-## 17. Screenshots
-_(Add screenshots here before submission)_
-- Dashboard — `docs/screenshot_dashboard.png`
-- Complaint Entry — `docs/screenshot_complaint_entry.png`
-- Existing Open Complaint Warning — `docs/screenshot_duplicate_warning.png`
-- Open Complaints — `docs/screenshot_open_complaints.png`
-- Assignment — `docs/screenshot_assignment.png`
-- Closure — `docs/screenshot_closure.png`
-- Repeat-Offender View — `docs/screenshot_repeat_offenders.png`
+---
 
+<<<<<<< HEAD
 ## 18. Demo Flow (2 minutes)
 1. Open **Dashboard** — point out KPIs and the "open complaints by ward" chart.
 2. Go to **Register Complaint**, enter pole **P-002** — show the existing-open-complaint warning card, explain this is how duplicate dispatch is avoided.
@@ -177,3 +216,31 @@ https://drive.google.com/file/d/1bYYAY_J493YanaFYxsSrfFlkmYe3qg5x/view?t=88.899
 
 
 https://drive.google.com/file/d/12GEiWst78WdPpASWl9jcD72Mre8GBaw2/view?t=6.309
+=======
+## 🧪 Testing
+
+To run the automated test suite, execute the following command in the project directory:
+```bash
+pytest tests/ -v
+```
+*The test suite automatically spins up an isolated, in-memory SQLite database, running all test scenarios without affecting your active development data.*
+
+### Verified Test Cases
+1. **Pole Creation:** Registering new poles and preventing duplicate pole numbers.
+2. **Intake Validation:** Rejecting complaints filed on non-existent poles.
+3. **Duplicate Prevention:** Alerting and blocking new complaints on poles with existing active complaints.
+4. **Aggregations:** Correctly grouping open complaints ward-wise.
+5. **Assignment Logic:** Assigning tickets to active electricians while rejecting assignments to inactive ones.
+6. **Concurrency/Race Conditions:** Validating optimistic locking behavior under double-closure attempts.
+
+---
+
+## 💡 Failure Recovery Features
+
+* **Double Closure Resolution (Optimistic Locking):** 
+  If two dashboard users attempt to close the same complaint at the same time, the system matches the ticket's `version` number. The transaction updates the state only if the version is unchanged. The second request is rejected with a `409 Conflict` status, informing the user that the complaint has already been resolved.
+* **Electrician Availability Safeguards:** 
+  The backend strictly evaluates the electrician’s active status in database records prior to assignment. Client-side attempts to assign inactive operators by modifying API request payloads are caught and rejected with a `400 Bad Request`.
+* **Database Connection Failure handling:** 
+  All routes wrapping DB access capture `SQLAlchemyError`. If the database crashes or disconnects, the API triggers an automatic fallback message, informing the client of database unavailability, rather than exposing internal stack traces.
+>>>>>>> c54c3f5 ( final change)

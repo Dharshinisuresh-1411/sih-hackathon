@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Poles{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Poles</h4>
+  <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addPoleModal"><i class="fa-solid fa-plus me-1"></i>Add Pole</button>
+</div>
+
+<div class="card card-section">
+  <div class="card-body p-0">
+    <table class="table mb-0 align-middle">
+      <thead class="table-light"><tr><th>Pole No.</th><th>Ward</th><th>Location</th><th>Status</th><th>Created</th></tr></thead>
+      <tbody id="polesBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal fade" id="addPoleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" id="poleForm">
+      <div class="modal-header"><h5 class="modal-title">Add Pole</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-2"><label class="form-label">Pole Number</label><input class="form-control" name="pole_number" placeholder="P-026" required></div>
+        <div class="mb-2"><label class="form-label">Ward</label><input class="form-control" name="ward" placeholder="Ward 1" required></div>
+        <div class="mb-2"><label class="form-label">Location</label><input class="form-control" name="location" placeholder="Main Road" required></div>
+        <div class="mb-2"><label class="form-label">Status</label>
+          <select class="form-select" name="status">
+            <option value="WORKING">Working</option>
+            <option value="DARK">Dark</option>
+            <option value="UNDER_REPAIR">Under Repair</option>
+            <option value="MAINTENANCE_REQUIRED">Maintenance Required</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success" type="submit">Save</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.refreshPolesList = async function() {
+  const { ok, data, error } = await apiFetch('/api/poles');
+  if (!ok) return showAlert(error);
+  document.getElementById('polesBody').innerHTML = data.map(p => `
+    <tr><td><strong>${p.pole_number}</strong></td><td>${p.ward}</td><td>${p.location}</td>
+    <td><span class="badge bg-secondary">${p.status}</span></td><td>${formatDate(p.created_at)}</td></tr>
+  `).join('') || '<tr><td colspan="5" class="text-center text-muted p-3">No poles yet</td></tr>';
+};
+
+async function loadPoles() {
+  const { ok, data, error } = await apiFetch('/api/poles');
+  if (!ok) return showAlert(error);
+  document.getElementById('polesBody').innerHTML = data.map(p => `
+    <tr><td><strong>${p.pole_number}</strong></td><td>${p.ward}</td><td>${p.location}</td>
+    <td><span class="badge bg-secondary">${p.status}</span></td><td>${formatDate(p.created_at)}</td></tr>
+  `).join('') || '<tr><td colspan="5" class="text-center text-muted p-3">No poles yet</td></tr>';
+}
+
+document.getElementById('poleForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const payload = Object.fromEntries(form.entries());
+  const { ok, error } = await apiFetch('/api/poles', { method: 'POST', body: JSON.stringify(payload) });
+  if (!ok) return showAlert(error);
+  bootstrap.Modal.getInstance(document.getElementById('addPoleModal')).hide();
+  e.target.reset();
+  showAlert('Pole added successfully.', 'success');
+  window.refreshPolesList();
+});
+
+window.refreshPolesList();
+</script>
+{% endblock %}
